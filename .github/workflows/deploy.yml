@@ -5,17 +5,20 @@ on:
     branches:
       - deploy # Disparador oficial según la pauta de evaluación
 
+# ── CONFIGURACIÓN GLOBAL ──────────────────────────────────────────────────
+env:
+  # AQUÍ puedes cambiar "Prueba-Devops2" por cualquier cosa si renombras tu carpeta en la EC2
+  REPO_DIR: "Prueba-Devops2" 
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
     outputs:
       registry: ${{ steps.login-ecr.outputs.registry }}
     steps:
-    # 1. Descargar el código fuente (Versión actualizada a Node 24)
     - name: Checkout Code
       uses: actions/checkout@v4
 
-    # 2. Configurar credenciales de AWS (Versión actualizada a Node 24)
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v4
       with:
@@ -24,12 +27,10 @@ jobs:
         aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
         aws-region: us-east-1
 
-    # 3. Autenticarse en Amazon ECR
     - name: Login to Amazon ECR
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    # 4. Construir y empaquetar imágenes directamente en los servidores de GitHub
     - name: Build, Tag, and Push to Amazon ECR
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
@@ -50,7 +51,7 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-    # 5. Despliegue en la instancia PRIVADA de Backend a través del Frontend como Bastion Host
+    # Despliegue en la instancia PRIVADA de Backend a través del Frontend como Bastion Host
     - name: Actualizar Instancia de Backend (APIs vía Proxy Frontend)
       uses: appleboy/ssh-action@v1.0.3
       env:
@@ -58,27 +59,24 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
         REGISTRY: ${{ needs.build-and-push.outputs.registry }}
+        FOLDER: ${{ env.REPO_DIR }}
       with:
-        # Destino final: IP Privada interna del Backend
         host: 10.0.2.107
         username: ec2-user
         key: ${{ secrets.EC2_SSH_KEY }}
-        
-        # El Puente Seguro: IP Pública de tu Frontend
         proxy_host: ${{ secrets.EC2_HOST_FRONTEND }}
         proxy_username: ec2-user
         proxy_key: ${{ secrets.EC2_SSH_KEY }}
-        
-        envs: AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,REGISTRY
+        envs: AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,REGISTRY,FOLDER
         script: |
-          cd /home/ec2-user/prueba-devops2
+          cd /home/ec2-user/$FOLDER
           git pull origin deploy
           export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REGISTRY
           docker compose pull
           docker compose up -d
 
-    # 6. Despliegue directo en la instancia PÚBLICA de Frontend
+    # Despliegue directo en la instancia PÚBLICA de Frontend
     - name: Actualizar Instancia de Frontend (Web Directo)
       uses: appleboy/ssh-action@v1.0.3
       env:
@@ -86,15 +84,14 @@ jobs:
         AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
         REGISTRY: ${{ needs.build-and-push.outputs.registry }}
+        FOLDER: ${{ env.REPO_DIR }}
       with:
-        # Destino directo: IP Pública de tu Frontend
         host: ${{ secrets.EC2_HOST_FRONTEND }}
         username: ec2-user
         key: ${{ secrets.EC2_SSH_KEY }}
-        
-        envs: AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,REGISTRY
+        envs: AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,REGISTRY,FOLDER
         script: |
-          cd /home/ec2-user/prueba-devops2
+          cd /home/ec2-user/$FOLDER
           git pull origin deploy
           export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REGISTRY
