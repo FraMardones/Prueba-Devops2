@@ -1,0 +1,87 @@
+name: Pipeline CI/CD - Innovatech Chile
+
+on:
+  push:
+    branches:
+      - deploy # Disparador oficial de la rúbrica
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    outputs:
+      registry: ${{ steps.login-ecr.outputs.registry }}
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Configure AWS Credentials
+      uses: aws-actions/configure-aws-credentials@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-session-token: ${{ secrets.AWS_SESSION_TOKEN }}
+        aws-region: us-east-1
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build, Tag, and Push to Amazon ECR
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+      run: |
+        # 1. Compilar y subir Microservicio de Ventas
+        docker build -t $ECR_REGISTRY/innovatech-ventas:latest ./back-Ventas_SpringBoot/Springboot-API-REST
+        docker push $ECR_REGISTRY/innovatech-ventas:latest
+        
+        # 2. Compilar y subir Microservicio de Despachos
+        docker build -t $ECR_REGISTRY/innovatech-despachos:latest ./back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
+        docker push $ECR_REGISTRY/innovatech-despachos:latest
+        
+        # 3. Compilar y subir Frontend Web (Nginx + React)
+        docker build -t $ECR_REGISTRY/innovatech-frontend:latest ./front_despacho
+        docker push $ECR_REGISTRY/innovatech-frontend:latest
+
+  deploy-infrastructure:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+    - name: Actualizar Instancia de Backend (APIs)
+      uses: appleboy/ssh-action@v1.0.3
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+        REGISTRY: ${{ needs.build-and-push.outputs.registry }}
+      with:
+        host: ${{ secrets.EC2_HOST_BACKEND }}
+        username: ec2-user
+        key: ${{ secrets.EC2_SSH_KEY }}
+        envs: AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,REGISTRY
+        script: |
+          cd /home/ec2-user/prueba-devops2
+          git pull origin deploy
+          export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REGISTRY
+          docker compose pull
+          docker compose up -d
+
+    - name: Actualizar Instancia de Frontend (Web)
+      uses: appleboy/ssh-action@v1.0.3
+      env:
+        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        AWS_SESSION_TOKEN: ${{ secrets.AWS_SESSION_TOKEN }}
+        REGISTRY: ${{ needs.build-and-push.outputs.registry }}
+      with:
+        host: ${{ secrets.EC2_HOST_FRONTEND }}
+        username: ec2-user
+        key: ${{ secrets.EC2_SSH_KEY }}
+        envs: AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,REGISTRY
+        script: |
+          cd /home/ec2-user/prueba-devops2
+          git pull origin deploy
+          export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
+          aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REGISTRY
+          docker compose pull
+          docker compose up -d
