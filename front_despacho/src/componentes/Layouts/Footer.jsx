@@ -3,7 +3,8 @@ import logo1 from "../../assets/images/logo2.png";
 
 function Footer() {
   return (
-    <footer className="bg-teal-500 p-4 text-center w-full rounded-xl">
+    /* CAMBIO AQUÍ: Se cambió bg-teal-500 por bg-blue-600 */
+    <footer className="bg-blue-600 p-4 text-center w-full rounded-xl">
       <div className="mx-auto w-full max-w-screen-xl p-4 py-6 lg:py-8">
         <div className="md:flex md:justify-between">
           <div className="mb-6 md:mb-0">
@@ -69,7 +70,7 @@ function Footer() {
         </div>
         <hr className="my-6 border-gray-200 sm:mx-auto dark:border-gray-700 lg:my-8" />
         <div className="sm:flex sm:items-center sm:justify-between">
-          <span className="text-sm text-gray-800 dark:text-gray-800 sm:text-center">
+          <span className="text-sm text-white sm:text-center">
             © 2024{" "}
             <a href="#" className="hover:underline">
               ITPCARGO™
