@@ -5,7 +5,7 @@ on:
     branches:
       - deploy
     paths:
-      - 'front_despacho/**' # ✨ CORREGIDO: Ahora sí detecta cuando cambias el código del front
+      - 'front_despacho/**'
 
 jobs:
   deploy-frontend:
@@ -21,11 +21,10 @@ jobs:
           echo "==== Actualizando el diseño del Frontend ===="
           cd /home/ec2-user/Prueba-Devops2
           
-          # 1. Traer los cambios de código reales desde GitHub
+          # 1. Bajar el cambio de texto desde GitHub
           git pull origin deploy
           
-          # 2. CORREGIDO: Forzar la reconstrucción de la imagen multi-stage de Docker sin usar caché anterior
-          # Nota: Asegúrate de que 'front_despacho' coincida con el nombre del servicio en tu docker-compose.yml
-          sudo docker compose up -d --build --force-recreate front_despacho
+          # 2. Forzar la reconstrucción real apuntando al nombre del servicio en el compose
+          sudo docker compose up -d --build --force-recreate api-frontend
           
-          echo "==== ¡Color actualizado con éxito en producción! ===="
+          echo "==== ¡Texto actualizado con éxito en producción! ===="

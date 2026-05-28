@@ -70,10 +70,10 @@ function Footer() {
         </div>
         <hr className="my-6 border-gray-200 sm:mx-auto dark:border-gray-700 lg:my-8" />
         <div className="sm:flex sm:items-center sm:justify-between">
-          <span className="text-sm text-white sm:text-center">
+          <span className="text-sm text-gray-800 dark:text-gray-800 sm:text-center">
             © 2024{" "}
-            <a href="#" className="hover:underline">
-              ITPCARGO™
+            <a href="#" className="hover:underline font-bold text-red-600">
+              ITPCARGO - ¡PIPELINE CI/CD OPERATIVO! 🚀🔥
             </a>
             . Todos los derechos reservados.
           </span>
