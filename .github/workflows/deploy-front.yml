@@ -5,7 +5,7 @@ on:
     branches:
       - deploy
     paths:
-      - 'frontend/**' # ⚡ SÓLO se activa si cambias cosas en la carpeta del front
+      - 'front_despacho/**' # ✨ CORREGIDO: Ahora sí detecta cuando cambias el código del front
 
 jobs:
   deploy-frontend:
@@ -14,18 +14,18 @@ jobs:
     - name: Conectar al Frontend y Actualizar la Página
       uses: appleboy/ssh-action@v1.0.3
       with:
-        host: ${{ secrets.EC2_HOST_FRONTEND }} # Tu IP pública del Frontend
+        host: ${{ secrets.EC2_HOST_FRONTEND }}
         username: ec2-user
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
           echo "==== Actualizando el diseño del Frontend ===="
           cd /home/ec2-user/Prueba-Devops2
           
-          # 1. Bajar el cambio de color desde GitHub
+          # 1. Traer los cambios de código reales desde GitHub
           git pull origin deploy
           
-          # 2. Reiniciar sólo el contenedor del Front para aplicar el cambio estético
-          # (Ajusta 'api-frontend' o 'nginx' al nombre real de tu contenedor del front)
-          sudo docker compose restart api-frontend
+          # 2. CORREGIDO: Forzar la reconstrucción de la imagen multi-stage de Docker sin usar caché anterior
+          # Nota: Asegúrate de que 'front_despacho' coincida con el nombre del servicio en tu docker-compose.yml
+          sudo docker compose up -d --build --force-recreate front_despacho
           
           echo "==== ¡Color actualizado con éxito en producción! ===="
