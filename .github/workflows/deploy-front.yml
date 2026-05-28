@@ -5,7 +5,7 @@ on:
     branches:
       - deploy
     paths:
-      - 'front_despacho/**'
+      - 'front_despacho/**' # Detecta cualquier cambio dentro de tu carpeta del front
 
 jobs:
   deploy-frontend:
@@ -18,13 +18,14 @@ jobs:
         username: ec2-user
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          echo "==== Actualizando el diseño del Frontend ===="
+          echo "==== Iniciando actualización forzada del Frontend ===="
           cd /home/ec2-user/Prueba-Devops2
           
-          # 1. Bajar el cambio de texto desde GitHub
+          # 1. Bajar el cambio de texto del Navbar desde GitHub
           git pull origin deploy
           
-          # 2. Forzar la reconstrucción real apuntando al nombre del servicio en el compose
-          sudo docker compose up -d --build --force-recreate api-frontend
+          # 2. Comando infalible: Apaga, limpia la caché, compila el nuevo JS y levanta todo limpio
+          sudo docker compose down
+          sudo docker compose up -d --build
           
-          echo "==== ¡Texto actualizado con éxito en producción! ===="
+          echo "==== ¡Pipeline CI/CD completado con éxito! ===="
