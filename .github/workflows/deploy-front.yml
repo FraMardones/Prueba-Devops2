@@ -3,9 +3,7 @@ name: Pipeline Express - Actualizar Color Front
 on:
   push:
     branches:
-      - deploy
-    paths:
-      - 'front_despacho/**' # Detecta cualquier cambio dentro de tu carpeta del front
+      - deploy # ✨ CORREGIDO: Se quitó 'paths' para que corra SÍ O SÍ en cada push
 
 jobs:
   deploy-frontend:
@@ -18,14 +16,24 @@ jobs:
         username: ec2-user
         key: ${{ secrets.EC2_SSH_KEY }}
         script: |
-          echo "==== Iniciando actualización forzada del Frontend ===="
+          echo "==== Destrabando permisos de Git en AWS ===="
           cd /home/ec2-user/Prueba-Devops2
           
-          # 1. Bajar el cambio de texto del Navbar desde GitHub
-          git pull origin deploy
+          # 1. Evitar el error de 'dubious ownership' si la carpeta es de root
+          sudo git config --global --add safe.directory /home/ec2-user/Prueba-Devops2
           
-          # 2. Comando infalible: Apaga, limpia la caché, compila el nuevo JS y levanta todo limpio
+          # 2. Forzar la descarga limpia usando sudo
+          sudo git fetch --all
+          sudo git reset --hard origin/deploy
+          
+          echo "==== Reconstruyendo contenedores desde cero absoluto ===="
+          # 3. Apagar entorno antiguo
           sudo docker compose down
-          sudo docker compose up -d --build
           
-          echo "==== ¡Pipeline CI/CD completado con éxito! ===="
+          # 4. Obligar a Docker a compilar el JS de Vite ignorando la caché vieja
+          sudo docker compose build --no-cache
+          
+          # 5. Levantar el Front actualizado
+          sudo docker compose up -d --force-recreate
+          
+          echo "==== ¡Pipeline CI/CD completado sin bloqueos! ===="

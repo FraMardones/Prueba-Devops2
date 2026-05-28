@@ -2,9 +2,8 @@ import React from "react";
 
 function Navbar() {
   return (
-    // 🎨 Mantiene tu diseño con bg-indigo-600
     <nav className="rounded-xl w-[250px] min-h-[880px] bg-indigo-600 text-white sticky top-0 p-4 m-4">
-      {/* CAMBIO AQUÍ: Título cambiado para validar el Pipeline */}
+      {/* TEXTO CAMBIADO PARA DEMOSTRAR EL PIPELINE */}
       <h2 className="text-xl font-bold mb-8">MENU PRINCIPAL 🚀</h2>
 
       {/* Menú de navegación */}
