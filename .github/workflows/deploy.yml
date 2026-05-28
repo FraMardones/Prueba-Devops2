@@ -3,12 +3,11 @@ name: Pipeline CI/CD - Innovatech Chile
 on:
   push:
     branches:
-      - deploy # Disparador oficial según la pauta de evaluación
+      - deploy # Disparador oficial al subir cambios a la rama deploy
 
 # ── CONFIGURACIÓN GLOBAL ──────────────────────────────────────────────────
 env:
-  # AQUÍ puedes cambiar "Prueba-Devops2" por cualquier cosa si renombras tu carpeta en la EC2
-  REPO_DIR: "Prueba-Devops2" 
+  REPO_DIR: "Prueba-Devops2" # Carpeta donde se clona tu repositorio en Linux
 
 jobs:
   build-and-push:
@@ -35,15 +34,15 @@ jobs:
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
       run: |
-        # Compilar y subir Microservicio de Ventas
+        # 1. Compilar y subir Microservicio de Ventas
         docker build -t $ECR_REGISTRY/innovatech-ventas:latest ./back-Ventas_SpringBoot/Springboot-API-REST
         docker push $ECR_REGISTRY/innovatech-ventas:latest
         
-        # Compilar y subir Microservicio de Despachos
+        # 2. Compilar y subir Microservicio de Despachos
         docker build -t $ECR_REGISTRY/innovatech-despachos:latest ./back-Despachos_SpringBoot/Springboot-API-REST-DESPACHO
         docker push $ECR_REGISTRY/innovatech-despachos:latest
         
-        # Compilar y subir Frontend Web (Nginx + React)
+        # 3. Compilar y subir Frontend Web (Nginx + React)
         docker build -t $ECR_REGISTRY/innovatech-frontend:latest ./front_despacho
         docker push $ECR_REGISTRY/innovatech-frontend:latest
 
@@ -51,7 +50,7 @@ jobs:
     needs: build-and-push
     runs-on: ubuntu-latest
     steps:
-    # Despliegue en la instancia PRIVADA de Backend a través del Frontend como Bastion Host
+    # ── TRABAJO 1: DESPLIEGUE EN BACKEND PRIVADO VIA BASTION HOST ────────────────
     - name: Actualizar Instancia de Backend (APIs vía Proxy Frontend)
       uses: appleboy/ssh-action@v1.0.3
       env:
@@ -61,7 +60,7 @@ jobs:
         REGISTRY: ${{ needs.build-and-push.outputs.registry }}
         FOLDER: ${{ env.REPO_DIR }}
       with:
-        host: 10.0.2.107
+        host: 10.0.2.107 # IP Privada de tu Backend
         username: ec2-user
         key: ${{ secrets.EC2_SSH_KEY }}
         proxy_host: ${{ secrets.EC2_HOST_FRONTEND }}
@@ -69,14 +68,30 @@ jobs:
         proxy_key: ${{ secrets.EC2_SSH_KEY }}
         envs: AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,REGISTRY,FOLDER
         script: |
+          # Entrar al repositorio para descargar el productos.sql actualizado
           cd /home/ec2-user/$FOLDER
           git pull origin deploy
+          
+          # Autenticarse en Amazon ECR
           export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REGISTRY
+          
+          # Moverse a la ruta del docker-compose.yml manual del Backend y actualizar APIs
+          cd /home/ec2-user
           docker compose pull
           docker compose up -d
+          
+          # INYECCIÓN AUTOMÁTICA DE PRODUCTOS A LA INSTANCIA DE BASE DE DATOS
+          echo "==== Esperando 10 segundos a que la red interna se estabilice ===="
+          sleep 10
+          
+          echo "==== Insertando catálogo de productos en la instancia de Data ===="
+          # ⚠️ REEMPLAZA EL TEXTO 'TU_IP_PRIVADA_DE_LA_BASE_DE_DATOS' POR LA IP REAL (Ej: 10.0.2.X)
+          docker run --rm -i mysql:8.0 mysql -h TU_IP_PRIVADA_DE_LA_BASE_DE_DATOS -u root -padmin123 < /home/ec2-user/$FOLDER/productos.sql
+          
+          echo "==== ¡Base de datos remota abastecida con éxito para la demo! ===="
 
-    # Despliegue directo en la instancia PÚBLICA de Frontend
+    # ── TRABAJO 2: DESPLIEGUE DIRECTO EN EL FRONTEND PÚBLICO ──────────────────────
     - name: Actualizar Instancia de Frontend (Web Directo)
       uses: appleboy/ssh-action@v1.0.3
       env:
@@ -91,9 +106,16 @@ jobs:
         key: ${{ secrets.EC2_SSH_KEY }}
         envs: AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,AWS_SESSION_TOKEN,REGISTRY,FOLDER
         script: |
+          # Entrar al repositorio y actualizarlo
           cd /home/ec2-user/$FOLDER
           git pull origin deploy
+          
+          # Autenticarse en Amazon ECR
           export AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY AWS_SESSION_TOKEN
           aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $REGISTRY
+          
+          # Moverse a la ruta del docker-compose.yml manual del Frontend y actualizar Web
+          cd /home/ec2-user
           docker compose pull
           docker compose up -d
+          echo "==== ¡Frontend actualizado exitosamente! ===="
