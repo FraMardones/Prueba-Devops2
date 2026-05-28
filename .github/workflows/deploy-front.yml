@@ -1,0 +1,31 @@
+name: Pipeline Express - Actualizar Color Front
+
+on:
+  push:
+    branches:
+      - deploy
+    paths:
+      - 'frontend/**' # ⚡ SÓLO se activa si cambias cosas en la carpeta del front
+
+jobs:
+  deploy-frontend:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Conectar al Frontend y Actualizar la Página
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.EC2_HOST_FRONTEND }} # Tu IP pública del Frontend
+        username: ec2-user
+        key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          echo "==== Actualizando el diseño del Frontend ===="
+          cd /home/ec2-user/Prueba-Devops2
+          
+          # 1. Bajar el cambio de color desde GitHub
+          git pull origin deploy
+          
+          # 2. Reiniciar sólo el contenedor del Front para aplicar el cambio estético
+          # (Ajusta 'api-frontend' o 'nginx' al nombre real de tu contenedor del front)
+          sudo docker compose restart api-frontend
+          
+          echo "==== ¡Color actualizado con éxito en producción! ===="
