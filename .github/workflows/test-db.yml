@@ -1,0 +1,31 @@
+name: Pipeline de Prueba - Carga de Datos en Caliente
+
+on:
+  workflow_dispatch: # 💥 Esto activa el botón de ejecución MANUAL en la interfaz de GitHub
+
+env:
+  REPO_DIR: "Prueba-Devops2"
+
+jobs:
+  seed-data:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Conectar al Backend e Inyectar Base de Datos
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: 10.0.2.107 # IP Privada de tu Backend (Bastión)
+        username: ec2-user
+        key: ${{ secrets.EC2_SSH_KEY }}
+        proxy_host: ${{ secrets.EC2_HOST_FRONTEND }}
+        proxy_username: ec2-user
+        proxy_key: ${{ secrets.EC2_SSH_KEY }}
+        script: |
+          # 1. Entrar a la carpeta del repositorio y bajar el archivo SQL más fresco de GitHub
+          cd /home/ec2-user/${{ env.REPO_DIR }}
+          git pull origin deploy
+          
+          # 2. Inyectar el archivo SQL directo a la IP de la Base de Datos en caliente
+          echo "==== Iniciando inyección de Ventas y Despachos para la Demo ===="
+          docker run --rm -i mysql:8.0 mysql -h 10.0.3.101 -u root -padmin123 < /home/ec2-user/${{ env.REPO_DIR }}/orden_compra.sql
+          
+          echo "==== ¡Base de datos rellenada con éxito en 3 segundos! ===="
